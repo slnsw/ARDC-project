@@ -73,15 +73,16 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     # Defining constants
     bookJSONLD = 'ro-crate-metadata.jsonld'
     name = mmsid[0]['mdWrap']['xmlData']['record']['title']
-    author = mmsid[0]['mdWrap']['xmlData']['record']['creator']
+    #author = mmsid[0]['mdWrap']['xmlData']['record']['creator']
     mms_id = mmsid[0]['mdWrap']['xmlData']['record']['identifier']
     bookName = 'Scannedpages'
 
     # Base URL for fetching bib data
     base_url = "https://api-ap.hosted.exlibrisgroup.com/almaws/v1/bibs"
     #API Key (input your own key here)
-    apikey = "l8xxa0faef03a6bd47c08bb9de14d8015225"
+    apikey = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     
+    # Retrieving bib xml from ALMA API
     response = requests.get(base_url, params={'mms_id': mms_id,'apikey':apikey})
     bib_ordereddict = xml_json(response.text)
     bib_json = json.dumps([bib_ordereddict])
@@ -90,7 +91,7 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     description = "Description"
     datePublished = bib_dict[0]['bib']['date_of_publication']
     
-    # Reading in the template JSON file
+    # Reading in the template JSONLD file
     template_dir = os.path.join(os.getcwd(), 'template', 'ro-crate-metadata.jsonld')
     with open(template_dir, 'r') as myfile:
         j=myfile.read()
@@ -110,7 +111,8 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     rootDataset['datePublished'] = datePublished
 
     hasPart = []
-    
+    # Filling in the template JSONLD
+    # Filling in details of screens, altos and anything else present in the mets
     for index, file in enumerate(screenFiles):
         screen = file['name']
         basename = screen.split('.')[0]
@@ -165,10 +167,11 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     
     jsonLD['@graph'].append(book)
     
-    crateDir = os.path.join(os.getcwd(),IE_PID)
+    # Writing JSONLD file into the book's RO-Crate
+    crateDir = os.path.join(os.getcwd(),'RO-Crates',IE_PID)
     if not os.path.exists(crateDir):
         os.makedirs(crateDir)
-    with open(os.path.join(IE_PID, bookJSONLD), 'w') as fp:
+    with open(os.path.join(crateDir, bookJSONLD), 'w') as fp:
         json.dump(jsonLD, fp, ensure_ascii=False, indent=2)
     
 
@@ -192,7 +195,7 @@ def getFiles(IE_PID, objfiles):
             root = ET.fromstring(resp1.text)
             tree._setroot(root)
     
-            crateDir = os.path.join(os.getcwd(),IE_PID,"ALTO")
+            crateDir = os.path.join(os.getcwd(),'RO-Crates',IE_PID,"ALTO")
             if not os.path.exists(crateDir):
                 os.makedirs(crateDir)
             filename = crateDir + "/" + x['name']
@@ -203,7 +206,7 @@ def getFiles(IE_PID, objfiles):
     for x in screenFiles:
         resp1 = requests.get(url,params={'dps_pid':x['FLID'], 'dps_func':'stream'},stream=True)
         if resp1.status_code == 200:
-            crateimgDir = os.path.join(os.getcwd(),IE_PID,"SCREEN")
+            crateimgDir = os.path.join(os.getcwd(),'RO-Crates',IE_PID,"SCREEN")
             if not os.path.exists(crateimgDir):
                 os.makedirs(crateimgDir)
             with open(crateimgDir + "/" + x['name'], 'wb') as f:
@@ -214,7 +217,7 @@ def getFiles(IE_PID, objfiles):
             
     resp_pdf = requests.get(url,params={'dps_pid':pdfFiles[0]['FLID'], 'dps_func':'stream'},stream=True)
     if resp_pdf.status_code == 200:
-        cratepdfDir = os.path.join(os.getcwd(),IE_PID,"PDF")
+        cratepdfDir = os.path.join(os.getcwd(),'RO-Crates',IE_PID,"PDF")
         if not os.path.exists(cratepdfDir):
             os.makedirs(cratepdfDir)
         with open(cratepdfDir + "/" + pdfFiles[0]['name'], 'wb') as f:
@@ -226,7 +229,7 @@ def getFiles(IE_PID, objfiles):
     try:
         resp_epub = requests.get(url,params={'dps_pid':epubFiles[0]['FLID'], 'dps_func':'stream'},stream=True)
         if resp_epub.status_code == 200:
-            cratepdfDir = os.path.join(os.getcwd(),IE_PID,"EPUB")
+            cratepdfDir = os.path.join(os.getcwd(),'RO-Crates',IE_PID,"EPUB")
             if not os.path.exists(cratepdfDir):
                 os.makedirs(cratepdfDir)
             with open(cratepdfDir + "/" + epubFiles[0]['name'], 'wb') as f:
