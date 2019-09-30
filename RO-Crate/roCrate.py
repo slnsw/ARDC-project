@@ -5,11 +5,15 @@ Created on Fri Sep 27 10:27:34 2019
 @author: SAli
 """
 
+import os 
 import json
 import time
 import xml.etree.ElementTree as ET
 #from utils.rosetta import Rosetta  # this is a rosetta helper class from the SL github
 from utils.rosetta import xml_json
+import requests
+import shutil
+
 
 
 def glean(IE_PID, ros):
@@ -58,9 +62,177 @@ def glean(IE_PID, ros):
     
 
 
+
 def roCrateJsonld(IE_PID, objfiles, mmsid):
-    print("This is for creating the RO Crate directory and JSONLD")
+    
+    altoFiles = list(filter(lambda file: file['id'] == 'ALTO', objfiles))
+    screenFiles = list(filter(lambda file: file['id'] == 'SCREEN', objfiles))
+    altoFiles = sorted(altoFiles, key = lambda i: i['name'])
+    screenFiles =sorted(screenFiles, key = lambda i: i['name'])
+    
+    # Defining constants
+    bookJSONLD = 'ro-crate-metadata.jsonld'
+    name = mmsid[0]['mdWrap']['xmlData']['record']['title']
+    author = mmsid[0]['mdWrap']['xmlData']['record']['creator']
+    mms_id = mmsid[0]['mdWrap']['xmlData']['record']['identifier']
+    bookName = 'Scannedpages'
+
+    # Base URL for fetching bib data
+    base_url = "https://api-ap.hosted.exlibrisgroup.com/almaws/v1/bibs"
+    #API Key (input your own key here)
+    apikey = "l8xxa0faef03a6bd47c08bb9de14d8015225"
+    
+    response = requests.get(base_url, params={'mms_id': mms_id,'apikey':apikey})
+    bib_ordereddict = xml_json(response.text)
+    bib_json = json.dumps([bib_ordereddict])
+    bib_dict = json.loads(bib_json)
+    
+    description = "Description"
+    datePublished = bib_dict[0]['bib']['date_of_publication']
+    
+    # Reading in the template JSON file
+    template_dir = os.path.join(os.getcwd(), 'template', 'ro-crate-metadata.jsonld')
+    with open(template_dir, 'r') as myfile:
+        j=myfile.read()
+    roCrateTemplate_dict = json.loads(j)
+    jsonLD = roCrateTemplate_dict
+    
+    # Find the root dataset
+    # First find the item that is the root dataset
+    rootDatasetDescriptor = [d for d in jsonLD["@graph"] if d["@id"] == "ro-crate-metadata.jsonld"]
+    rootDatasetDescriptor = rootDatasetDescriptor[0]
+    # Then find the rootDataset that it is about.
+    print("desc", rootDatasetDescriptor)
+    rootDataset = [r for r in jsonLD["@graph"] if r["@id"] == rootDatasetDescriptor["about"]["@id"]]
+    rootDataset = rootDataset[0]
+    rootDataset['name'] = name
+    rootDataset['description'] = description
+    rootDataset['datePublished'] = datePublished
+
+    hasPart = []
+    
+    for index, file in enumerate(screenFiles):
+        screen = file['name']
+        basename = screen.split('.')[0]
+        try:
+            alto = [r for r in altoFiles if r["name"] == basename+".xml"][0]['name']
+        except:
+            alto = None
+        if screen:
+            hasPart.append({'@id': basename})
+            fileId = 'SCREEN/' + screen
+            screenObj = {
+                    '@id': screen,
+                    'name': 'Page ' + str((index + 1)) + ' image ',
+                    '@type': 'File',
+                    'path': fileId
+                    }
+    
+            jsonLD['@graph'].append(screenObj)
+        if alto:
+            fileId = 'ALTO/' + alto
+            altoObj = {
+                    '@id': alto,
+                    'name': 'Page ' + str((index + 1)) + ' xml ',
+                    '@type': 'File',
+                    'path': fileId
+                    }
+            jsonLD['@graph'].append(altoObj)
+        hasPartPage=[]
+        if screen:
+            hasPartPage.append({'@id': screen})
+        if alto:
+            hasPartPage.append({'@id': alto})
+        pageObj = {
+                '@id': name,
+                'name': 'Page ' + str((index + 1)),
+                '@type': 'RepositoryObject',
+                'hasPart': hasPartPage
+                }
+        jsonLD['@graph'].append(pageObj)
+        
+    book = {
+            '@id': '_:book',
+            'name': bookName,
+            '@type': ['Dataset'],
+            'hasPart': hasPart
+            }
+    rootDataset['hasPart'] = [
+            {
+                    '@id': '_:book'
+                    }
+            ]
+    
+    jsonLD['@graph'].append(book)
+    
+    crateDir = os.path.join(os.getcwd(),IE_PID)
+    if not os.path.exists(crateDir):
+        os.makedirs(crateDir)
+    with open(os.path.join(IE_PID, bookJSONLD), 'w') as fp:
+        json.dump(jsonLD, fp, ensure_ascii=False, indent=2)
     
 
+    
 def getFiles(IE_PID, objfiles):
-    print("This is for creating content folders in the RO Crate and retrieving files")
+    altoFiles = list(filter(lambda file: file['id'] == 'ALTO', objfiles))
+    screenFiles = list(filter(lambda file: file['id'] == 'SCREEN', objfiles))
+#    metsFiles = list(filter(lambda file: file['id'] == 'METS', objfiles))
+    pdfFiles = list(filter(lambda file: file['id'] == 'PDF', objfiles))
+    epubFiles = list(filter(lambda file: file['id'] == 'EPUB', objfiles))
+    
+    altoFiles = sorted(altoFiles, key = lambda i: i['name'])
+    screenFiles =sorted(screenFiles, key = lambda i: i['name'])
+    
+    url = "http://digital.sl.nsw.gov.au/delivery/DeliveryManagerServlet"
+
+    for x in altoFiles:
+        resp1 = requests.get(url,params={'dps_pid':x['FLID'], 'dps_func':'stream'})
+        if resp1.status_code == 200:
+            tree = ET.ElementTree()
+            root = ET.fromstring(resp1.text)
+            tree._setroot(root)
+    
+            crateDir = os.path.join(os.getcwd(),IE_PID,"ALTO")
+            if not os.path.exists(crateDir):
+                os.makedirs(crateDir)
+            filename = crateDir + "/" + x['name']
+            tree.write(filename)
+        else:
+            print("Error retrieving ALTOs")
+
+    for x in screenFiles:
+        resp1 = requests.get(url,params={'dps_pid':x['FLID'], 'dps_func':'stream'},stream=True)
+        if resp1.status_code == 200:
+            crateimgDir = os.path.join(os.getcwd(),IE_PID,"SCREEN")
+            if not os.path.exists(crateimgDir):
+                os.makedirs(crateimgDir)
+            with open(crateimgDir + "/" + x['name'], 'wb') as f:
+                resp1.raw.decode_content = True
+                shutil.copyfileobj(resp1.raw, f)   
+        else:
+            print("Error retrieving Screens")  
+            
+    resp_pdf = requests.get(url,params={'dps_pid':pdfFiles[0]['FLID'], 'dps_func':'stream'},stream=True)
+    if resp_pdf.status_code == 200:
+        cratepdfDir = os.path.join(os.getcwd(),IE_PID,"PDF")
+        if not os.path.exists(cratepdfDir):
+            os.makedirs(cratepdfDir)
+        with open(cratepdfDir + "/" + pdfFiles[0]['name'], 'wb') as f:
+            resp_pdf.raw.decode_content = True
+            shutil.copyfileobj(resp_pdf.raw, f)   
+    else:
+        print("Error retrieving PDF") 
+    
+    try:
+        resp_epub = requests.get(url,params={'dps_pid':epubFiles[0]['FLID'], 'dps_func':'stream'},stream=True)
+        if resp_epub.status_code == 200:
+            cratepdfDir = os.path.join(os.getcwd(),IE_PID,"EPUB")
+            if not os.path.exists(cratepdfDir):
+                os.makedirs(cratepdfDir)
+            with open(cratepdfDir + "/" + epubFiles[0]['name'], 'wb') as f:
+                resp_epub.raw.decode_content = True
+                shutil.copyfileobj(resp_epub.raw, f)   
+        else:
+            print("Error retrieving EPUB") 
+    except: 
+        print("Epub file not present")
