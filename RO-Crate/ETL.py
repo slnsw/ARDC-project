@@ -16,8 +16,8 @@ def main():
     api_pds_endpoint = 'https://libprd70.sl.nsw.gov.au/pds'
     api_sru_endpoint = 'http://digital.sl.nsw.gov.au/search/permanent/sru'
     
-    api_username = '******' # insert your API username here
-    api_password = '**********' # insert your API password here
+    api_username = 'api_etl'
+    api_password = 'blahBlah56'
     api_institude_code = 'SLNSW'
         
     ros = Rosetta(api_endpoint, api_pds_endpoint, api_sru_endpoint, api_username, api_password, api_institude_code, api_timeout=1200)
@@ -26,11 +26,11 @@ def main():
     df = df[["IE PID", "MMSIDs", "Barcodes","Title (DC)"]]
     print(df.head()) # Displaying first 5 rows
     
-    IE_PID = df["IE PID"][500]
+    IE_PID = df["IE PID"][3]
     
     objfiles,mmsid = glean(IE_PID, ros)
-    roCrateJsonld(IE_PID, objfiles=[1], mmsid='1')
-    getFiles(IE_PID, objfiles=[1])
+    roCrateJsonld(IE_PID, objfiles, mmsid)
+    getFiles(IE_PID, objfiles)
     
 #    booklist = random.sample(range(1, len(df["IE PID"])), 10)
     
