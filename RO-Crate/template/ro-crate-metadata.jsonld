@@ -1,0 +1,55 @@
+{
+      "@context": "https://raw.githubusercontent.com/ResearchObject/ro-crate/master/docs/0.2-DRAFT/context.json",
+      "@graph": [
+         {
+          "@id": "ro-crate-metadata.jsonld",
+          "@type": "CreativeWork",
+          "about": {
+            "@id": "./"
+          },
+          "identifier": "ro-crate-metadata.jsonld"
+        },
+        {
+          "@id": "./",
+          "publisher": {
+            "@id": "https://ror.org/04evq8811"
+          },
+          "contactPoint": {
+            "@id": "mailto:data-librarian@uts.edu.au"
+          },
+          "@type": [
+            "Dataset"
+          ],
+          "path": "./",
+          "author": [
+            {
+              "@id": "https://ror.org/04evq8811"
+            }
+          ],
+          "license": {
+            "@id": "https://creativecommons.org/licenses/by-nc-sa/3.0/au/"   
+          }
+        },
+        {
+          "@id": "mailto:data-librarian@uts.edu.au",
+          "@type": "ContactPoint",
+          "contactType": "customer service",
+          "email": "data-librarian@uts.edu.au",
+          "name": "Contact UTS Data Librarians"
+        },
+        
+        {
+          "@id": "slnsw",
+          "name": "State Library NSW",
+          "@type": "Organization"
+        },
+        {
+          "@id": "https://creativecommons.org/licenses/by-nc-sa/3.0/au/",
+          "@type": "CreativeWork",
+          "description": "This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Australia License. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/3.0/au/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.",
+          "identifier": "https://creativecommons.org/licenses/by-nc-sa/3.0/au/",
+          "name": "Attribution-NonCommercial-ShareAlike 3.0 Australia (CC BY-NC-SA 3.0 AU)"
+        }
+      ]
+    }
+      
