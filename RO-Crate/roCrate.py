@@ -67,6 +67,8 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     
     altoFiles = list(filter(lambda file: file['id'] == 'ALTO', objfiles))
     screenFiles = list(filter(lambda file: file['id'] == 'SCREEN', objfiles))
+    pdfFiles = list(filter(lambda file: file['id'] == 'PDF', objfiles))
+    epubFiles = list(filter(lambda file: file['id'] == 'EPUB', objfiles))
     altoFiles = sorted(altoFiles, key = lambda i: i['name'])
     screenFiles =sorted(screenFiles, key = lambda i: i['name'])
     
@@ -80,7 +82,7 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     # Base URL for fetching bib data
     base_url = "https://api-ap.hosted.exlibrisgroup.com/almaws/v1/bibs"
     #API Key (input your own key here)
-    apikey = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    apikey = "l8xxa0faef03a6bd47c08bb9de14d8015225"
     
     # Retrieving bib xml from ALMA API
     response = requests.get(base_url, params={'mms_id': mms_id,'apikey':apikey})
@@ -110,6 +112,32 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     rootDataset['description'] = description
     rootDataset['datePublished'] = datePublished
 
+    rootHasFile=[]
+    
+    pdfObj = {
+            '@id': pdfFiles[0]['name'],
+            '@type': 'File',
+            'path' : 'PDF/' + pdfFiles[0]['name'],
+            'name' : 'PDF version of book'
+            }
+    jsonLD['@graph'].append(pdfObj)
+    rootHasFile.append({'@id' : 'PDF/' + pdfFiles[0]['name']})
+    
+    try:
+        epubObj = {
+                '@id': epubFiles[0]['name'],
+                '@type': 'File',
+                'path' : 'EPUB/' + epubFiles[0]['name'],
+                'name' : 'EPUB version of book'
+                }
+        jsonLD['@graph'].append(epubObj)
+        rootHasFile.append({'@id' : 'EPUB/' + epubFiles[0]['name']})
+    except:
+        pass
+    
+    rootDataset['hasFile'] = rootHasFile
+    
+   
     hasPart = []
     # Filling in the template JSONLD
     # Filling in details of screens, altos and anything else present in the mets
@@ -146,7 +174,7 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
         if alto:
             hasPartPage.append({'@id': alto})
         pageObj = {
-                '@id': name,
+                '@id': basename,
                 'name': 'Page ' + str((index + 1)),
                 '@type': 'RepositoryObject',
                 'hasPart': hasPartPage
@@ -187,8 +215,9 @@ def getFiles(IE_PID, objfiles):
     screenFiles =sorted(screenFiles, key = lambda i: i['name'])
     
     url = "http://digital.sl.nsw.gov.au/delivery/DeliveryManagerServlet"
-
-    for x in altoFiles:
+    print("************* Fetching the ALTO files ****************")
+    for x in altoFiles[:5]:
+        print("Fetching ALTO file ",x['name'])
         resp1 = requests.get(url,params={'dps_pid':x['FLID'], 'dps_func':'stream'})
         if resp1.status_code == 200:
             tree = ET.ElementTree()
@@ -203,7 +232,9 @@ def getFiles(IE_PID, objfiles):
         else:
             print("Error retrieving ALTOs")
 
-    for x in screenFiles:
+    print("************* Fetching the Screen files ****************")        
+    for x in screenFiles[:5]:
+        print("Fetching ALTO file ",x['name'])
         resp1 = requests.get(url,params={'dps_pid':x['FLID'], 'dps_func':'stream'},stream=True)
         if resp1.status_code == 200:
             crateimgDir = os.path.join(os.getcwd(),'RO-Crates',IE_PID,"SCREEN")
@@ -215,6 +246,7 @@ def getFiles(IE_PID, objfiles):
         else:
             print("Error retrieving Screens")  
             
+    print("************* Fetching the PDF file ****************")  
     resp_pdf = requests.get(url,params={'dps_pid':pdfFiles[0]['FLID'], 'dps_func':'stream'},stream=True)
     if resp_pdf.status_code == 200:
         cratepdfDir = os.path.join(os.getcwd(),'RO-Crates',IE_PID,"PDF")
@@ -229,6 +261,7 @@ def getFiles(IE_PID, objfiles):
     try:
         resp_epub = requests.get(url,params={'dps_pid':epubFiles[0]['FLID'], 'dps_func':'stream'},stream=True)
         if resp_epub.status_code == 200:
+            print("************* Fetching the EPUB files ****************")  
             cratepdfDir = os.path.join(os.getcwd(),'RO-Crates',IE_PID,"EPUB")
             if not os.path.exists(cratepdfDir):
                 os.makedirs(cratepdfDir)
