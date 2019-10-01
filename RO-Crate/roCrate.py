@@ -82,7 +82,7 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     # Base URL for fetching bib data
     base_url = "https://api-ap.hosted.exlibrisgroup.com/almaws/v1/bibs"
     #API Key (input your own key here)
-    apikey = "l8xxa0faef03a6bd47c08bb9de14d8015225"
+    apikey = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     
     # Retrieving bib xml from ALMA API
     response = requests.get(base_url, params={'mms_id': mms_id,'apikey':apikey})
