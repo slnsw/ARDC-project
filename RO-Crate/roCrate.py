@@ -40,6 +40,7 @@ def glean(IE_PID, ros):
     amdSec_obj = list(filter(lambda file: file['techMD']['mdWrap']['xmlData']['dnx']['section'][0]['record']['key'][0]['id'] == 'objectType', amdSec))
     
     allobjectfiles = []    
+    
     for i in range(len(amdSec_obj)):
         objChars = amdSec_obj[i]['techMD']['mdWrap']['xmlData']['dnx']['section']
         internalIdentifier = list(filter(lambda file: file['id'] == 'internalIdentifier', objChars))
@@ -52,7 +53,7 @@ def glean(IE_PID, ros):
         pid = list(filter(lambda file: file['key'][0]['content'] == 'PID', record))
         fl_id = pid[0]['key'][1]['content']
         
-        item = {'id':originalPath_split[0], 'name':originalPath_split[1], 'FLID':fl_id}
+        item = {'id':originalPath_split[-2], 'name':originalPath_split[-1], 'FLID':fl_id}
         allobjectfiles.append(item)
 
     dmdSec = mets_dict[0]['dmdSec']
@@ -65,19 +66,24 @@ def glean(IE_PID, ros):
 
 def roCrateJsonld(IE_PID, objfiles, mmsid):
     
-    altoFiles = list(filter(lambda file: file['id'] == 'ALTO', objfiles))
-    screenFiles = list(filter(lambda file: file['id'] == 'SCREEN', objfiles))
-    pdfFiles = list(filter(lambda file: file['id'] == 'PDF', objfiles))
-    epubFiles = list(filter(lambda file: file['id'] == 'EPUB', objfiles))
+    altotypes = ['ALTO','ACCESS_TRANSCRIPT_LINKED']
+    imagetypes = ['SCREEN','ACCESS']
+    pdftypes = ['PDF','ACCESS_2']
+    epubtypes = ['EPUB','ACCESS_3']
+    
+    altoFiles = list(filter(lambda file: file['id'] in altotypes, objfiles))
+    screenFiles = list(filter(lambda file: file['id'] in imagetypes, objfiles))
+    pdfFiles = list(filter(lambda file: file['id'] in pdftypes, objfiles))
+    epubFiles = list(filter(lambda file: file['id'] in epubtypes, objfiles))
     altoFiles = sorted(altoFiles, key = lambda i: i['name'])
     screenFiles =sorted(screenFiles, key = lambda i: i['name'])
     
     # Defining constants
     bookJSONLD = 'ro-crate-metadata.jsonld'
-    name = mmsid[0]['mdWrap']['xmlData']['record']['title']
-    #author = mmsid[0]['mdWrap']['xmlData']['record']['creator']
+    name = mmsid[0]['mdWrap']['xmlData']['record']['title'].title()
+    
     mms_id = mmsid[0]['mdWrap']['xmlData']['record']['identifier']
-    bookName = 'Scannedpages'
+    bookName = 'Scanned pages'
 
     # Base URL for fetching bib data
     base_url = "https://api-ap.hosted.exlibrisgroup.com/almaws/v1/bibs"
@@ -90,9 +96,26 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     bib_json = json.dumps([bib_ordereddict])
     bib_dict = json.loads(bib_json)
     
-    description = "Description"
-    datePublished = bib_dict[0]['bib']['date_of_publication']
+    # Set book description (if there is one within the title)
+    try:
+        description = name.split(':')[1]
+    except:
+        description = "."
+
+    # Set book's date of publishing
+    try:
+        datePublished = bib_dict[0]['bib']['date_of_publication']
+    except:
+        datePublished = "."
+        
+    # Set book's author
+    try:
+        author = mmsid[0]['mdWrap']['xmlData']['record']['creator']
+    except:
+        author = "."
     
+
+        
     # Reading in the template JSONLD file
     template_dir = os.path.join(os.getcwd(), 'template', 'ro-crate-metadata.jsonld')
     with open(template_dir, 'r') as myfile:
@@ -111,23 +134,48 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     rootDataset['name'] = name
     rootDataset['description'] = description
     rootDataset['datePublished'] = datePublished
+    rootDataset['author'][0]['@id'] = author
+    rootDataset['publisher']['@id'] = bib_dict[0]['bib']['publisher_const']
+    rootDataset['source'] = [{"@id": "https://ror.org/04evq8811"}]
 
     rootHasFile=[]
     
-    pdfObj = {
-            '@id': pdfFiles[0]['name'],
-            '@type': 'File',
-            'path' : 'PDF/' + pdfFiles[0]['name'],
-            'name' : 'PDF version of book'
+    authorObj = {
+            "@id": author,
+            "@type": "Person"
             }
-    jsonLD['@graph'].append(pdfObj)
-    rootHasFile.append({'@id' : 'PDF/' + pdfFiles[0]['name']})
+    jsonLD['@graph'].append(authorObj)
+    
+    publisherObj = {
+            "@id": bib_dict[0]['bib']['publisher_const'],
+            "address": bib_dict[0]['bib']['place_of_publication'],
+            "@type": "Organization"            
+            }
+    jsonLD['@graph'].append(publisherObj)
+    
+    sourceObj = {
+            "@id": "https://ror.org/04evq8811",
+            "name": "State Library of NSW",
+            "address": "Sydney, Australia",
+            "@type": "Organization"
+            }
+    jsonLD['@graph'].append(sourceObj)
+    
+    try:
+        pdfObj = {
+                '@id': 'PDF/' + pdfFiles[0]['name'],
+                '@type': 'File',
+                'name' : 'PDF version of book'
+                }
+        jsonLD['@graph'].append(pdfObj)
+        rootHasFile.append({'@id' : 'PDF/' + pdfFiles[0]['name']})
+    except:
+        pass
     
     try:
         epubObj = {
-                '@id': epubFiles[0]['name'],
+                '@id': 'EPUB/' + epubFiles[0]['name'],
                 '@type': 'File',
-                'path' : 'EPUB/' + epubFiles[0]['name'],
                 'name' : 'EPUB version of book'
                 }
         jsonLD['@graph'].append(epubObj)
@@ -200,23 +248,29 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     if not os.path.exists(crateDir):
         os.makedirs(crateDir)
     with open(os.path.join(crateDir, bookJSONLD), 'w') as fp:
-        json.dump(jsonLD, fp, ensure_ascii=False, indent=2)
+        json.dump(jsonLD, fp, ensure_ascii=True, indent=2)
     
 
     
 def getFiles(IE_PID, objfiles):
-    altoFiles = list(filter(lambda file: file['id'] == 'ALTO', objfiles))
-    screenFiles = list(filter(lambda file: file['id'] == 'SCREEN', objfiles))
-#    metsFiles = list(filter(lambda file: file['id'] == 'METS', objfiles))
-    pdfFiles = list(filter(lambda file: file['id'] == 'PDF', objfiles))
-    epubFiles = list(filter(lambda file: file['id'] == 'EPUB', objfiles))
+    altotypes = ['ALTO','ACCESS_TRANSCRIPT_LINKED']
+    imagetypes = ['SCREEN','ACCESS']
+    pdftypes = ['PDF','ACCESS_2']
+    epubtypes = ['EPUB','ACCESS_3']
+    
+    altoFiles = list(filter(lambda file: file['id'] in altotypes, objfiles))
+    screenFiles = list(filter(lambda file: file['id'] in imagetypes, objfiles))
+    pdfFiles = list(filter(lambda file: file['id'] in pdftypes, objfiles))
+    epubFiles = list(filter(lambda file: file['id'] in epubtypes, objfiles))
+    altoFiles = sorted(altoFiles, key = lambda i: i['name'])
+    screenFiles =sorted(screenFiles, key = lambda i: i['name'])
     
     altoFiles = sorted(altoFiles, key = lambda i: i['name'])
     screenFiles =sorted(screenFiles, key = lambda i: i['name'])
     
     url = "http://digital.sl.nsw.gov.au/delivery/DeliveryManagerServlet"
     print("************* Fetching the ALTO files ****************")
-    for x in altoFiles[:5]:
+    for x in altoFiles:
         print("Fetching ALTO file ",x['name'])
         resp1 = requests.get(url,params={'dps_pid':x['FLID'], 'dps_func':'stream'})
         if resp1.status_code == 200:
@@ -233,8 +287,8 @@ def getFiles(IE_PID, objfiles):
             print("Error retrieving ALTOs")
 
     print("************* Fetching the Screen files ****************")        
-    for x in screenFiles[:5]:
-        print("Fetching ALTO file ",x['name'])
+    for x in screenFiles:
+        print("Fetching SCREEN file ",x['name'])
         resp1 = requests.get(url,params={'dps_pid':x['FLID'], 'dps_func':'stream'},stream=True)
         if resp1.status_code == 200:
             crateimgDir = os.path.join(os.getcwd(),'RO-Crates',IE_PID,"SCREEN")
@@ -261,7 +315,7 @@ def getFiles(IE_PID, objfiles):
     try:
         resp_epub = requests.get(url,params={'dps_pid':epubFiles[0]['FLID'], 'dps_func':'stream'},stream=True)
         if resp_epub.status_code == 200:
-            print("************* Fetching the EPUB files ****************")  
+            print("************* Fetching the EPUB files **************** \n")  
             cratepdfDir = os.path.join(os.getcwd(),'RO-Crates',IE_PID,"EPUB")
             if not os.path.exists(cratepdfDir):
                 os.makedirs(cratepdfDir)
