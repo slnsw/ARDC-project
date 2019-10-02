@@ -16,44 +16,55 @@ def main():
     api_pds_endpoint = 'https://libprd70.sl.nsw.gov.au/pds'
     api_sru_endpoint = 'http://digital.sl.nsw.gov.au/search/permanent/sru'
     
-    api_username = 'xxxxxx'
-    api_password = 'xxxxxxxx'
+    api_username = 'xxxxxxx'
+    api_password = 'xxxxxxxxxx'
     api_institude_code = 'SLNSW'
         
     ros = Rosetta(api_endpoint, api_pds_endpoint, api_sru_endpoint, api_username, api_password, api_institude_code, api_timeout=1200)
     
+    # Reading in the excel file
     df = pd.read_excel('ALTO_IEs.xlsx', sheet_name='Query List 2019-09-23 10.31.03')
     df = df[["IE PID", "MMSIDs", "Barcodes","Title (DC)"]]
+    
+    # Formatting MMSID column to numerical type
+    df["MMSIDs"] = df["MMSIDs"].str[1:]
+    df["MMSIDs"] = pd.to_numeric(df["MMSIDs"])
+    
     print(df.head()) # Displaying first 5 rows
     
-    IE_PID = df["IE PID"][3]
+    # Picking out 100 unique MMSIDs to look up
+    mms = list(df["MMSIDs"].unique())
+    mms_select = random.sample(mms, 100)
     
-    objfiles,mmsid = glean(IE_PID, ros)
-    roCrateJsonld(IE_PID, objfiles, mmsid)
-    getFiles(IE_PID, objfiles)
-    
-#    booklist = random.sample(range(1, len(df["IE PID"])), 10)
-    
-#    objectfiles = []
-#    mmsid = []
-    
-#    for i in booklist:
-#        IE_PID = df["IE PID"][i]
-#        print("******************** BOOK ",i,": IE PID ", IE_PID, " ********************")
-#        objectfiles[i],mmsid[i] = glean(IE_PID, ros)   
-    
-#    for i in booklist:
-#        IE_PID = df["IE PID"][i]
-#        print("******************** BOOK ",i,": IE PID ", IE_PID, " ********************")
-#        objectfiles[i],mmsid[i] = roCrateJsonld(IE_PID,objectfiles[i], mmsid[i]) 
-    
-#    for i in booklist:
-#        IE_PID = df["IE PID"][i]
-#        print("******************** BOOK ",i,": IE PID ", IE_PID, " ********************")
-#        objectfiles[i],mmsid[i] = roCrateJsonld(IE_PID,objectfiles[i]) 
-    
+    # Picking out unique IE PIDs
+    IE_PIDs = []
+    for i in mms_select:
+        y = df.loc[df["MMSIDs"]==i].iloc[0]["IE PID"]
+        IE_PIDs.append(y)
         
         
+    # Creating the RO-Crates for the 100 books         
+
+    objectfiles = []
+    mmsid = []
+    
+    for index, IE_PID in enumerate(IE_PIDs):
+        print("******************** Book ",index, " - IE PID: ", IE_PID, " ******************** \n")
+        obj_x,mmsid_x = glean(IE_PID, ros)   
+        objectfiles.append(obj_x)
+        mmsid.append(mmsid_x)
+        
+    for index, IE_PID in enumerate(IE_PIDs):
+        print("******************** Creating JSONLD for Book ",index, " ******************** \n")
+        roCrateJsonld(IE_PID, objectfiles[index], mmsid[index])
+        
+    for index, IE_PID in enumerate(IE_PIDs):
+        print("\n ******************** Retrieving files for Book ",index, " ******************** \n")
+        getFiles(IE_PID, objectfiles[index])        
+    
+        
+
+       
     
 if __name__ == '__main__':
     main()
