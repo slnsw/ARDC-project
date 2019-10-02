@@ -46,14 +46,23 @@ def glean(IE_PID, ros):
         internalIdentifier = list(filter(lambda file: file['id'] == 'internalIdentifier', objChars))
         generalFileChars = list(filter(lambda file: file['id'] == 'generalFileCharacteristics', objChars))
         
-        originalPath = list(filter(lambda file: file['id'] == 'fileOriginalPath', generalFileChars[0]['record']['key']))[0]['content']
-        originalPath_split = originalPath.split('/')
+        originalName = list(filter(lambda file: file['id'] == 'fileOriginalName', generalFileChars[0]['record']['key']))[0]['content']
+        
+        try:
+            originalPath = list(filter(lambda file: file['id'] == 'fileOriginalPath', generalFileChars[0]['record']['key']))[0]['content']
+            originalPath_id = originalPath.split('/')[-2]
+        except:
+            originalPath_id = list(filter(lambda file: file['id'] == 'fileExtension', generalFileChars[0]['record']['key']))[0]['content']
+            
         
         record = internalIdentifier[0]['record']
-        pid = list(filter(lambda file: file['key'][0]['content'] == 'PID', record))
-        fl_id = pid[0]['key'][1]['content']
+        try:
+            pid = list(filter(lambda file: file['key'][0]['content'] == 'PID', record))
+            fl_id = pid[0]['key'][1]['content']
+        except:
+            fl_id = record['key'][1]['content']
         
-        item = {'id':originalPath_split[-2], 'name':originalPath_split[-1], 'FLID':fl_id}
+        item = {'id':originalPath_id, 'name':originalName, 'FLID':fl_id}
         allobjectfiles.append(item)
 
     dmdSec = mets_dict[0]['dmdSec']
@@ -67,9 +76,9 @@ def glean(IE_PID, ros):
 def roCrateJsonld(IE_PID, objfiles, mmsid):
     
     altotypes = ['ALTO','ACCESS_TRANSCRIPT_LINKED']
-    imagetypes = ['SCREEN','ACCESS']
-    pdftypes = ['PDF','ACCESS_2']
-    epubtypes = ['EPUB','ACCESS_3']
+    imagetypes = ['SCREEN','ACCESS','jpg']
+    pdftypes = ['PDF','ACCESS_2','pdf']
+    epubtypes = ['EPUB','ACCESS_3','epub']
     
     altoFiles = list(filter(lambda file: file['id'] in altotypes, objfiles))
     screenFiles = list(filter(lambda file: file['id'] in imagetypes, objfiles))
