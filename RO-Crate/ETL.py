@@ -16,8 +16,8 @@ def main():
     api_pds_endpoint = 'https://libprd70.sl.nsw.gov.au/pds'
     api_sru_endpoint = 'http://digital.sl.nsw.gov.au/search/permanent/sru'
     
-    api_username = 'api_etl'
-    api_password = 'blahBlah56'
+    api_username = 'xxxxxxx'
+    api_password = 'xxxxxxxxxx'
     api_institude_code = 'SLNSW'
         
     ros = Rosetta(api_endpoint, api_pds_endpoint, api_sru_endpoint, api_username, api_password, api_institude_code, api_timeout=1200)
