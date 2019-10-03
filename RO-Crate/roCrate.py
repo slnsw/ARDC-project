@@ -97,7 +97,7 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     # Base URL for fetching bib data
     base_url = "https://api-ap.hosted.exlibrisgroup.com/almaws/v1/bibs"
     #API Key (input your own key here)
-    apikey = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    apikey = "l8xxa0faef03a6bd47c08bb9de14d8015225"
     
     # Retrieving bib xml from ALMA API
     response = requests.get(base_url, params={'mms_id': mms_id,'apikey':apikey})
@@ -123,8 +123,6 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     except:
         author = "."
     
-
-        
     # Reading in the template JSONLD file
     template_dir = os.path.join(os.getcwd(), 'template', 'ro-crate-metadata.jsonld')
     with open(template_dir, 'r') as myfile:
@@ -144,7 +142,21 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     rootDataset['description'] = description
     rootDataset['datePublished'] = datePublished
     rootDataset['author'][0]['@id'] = author
-    rootDataset['publisher']['@id'] = bib_dict[0]['bib']['publisher_const']
+    try:
+        rootDataset['publisher']['@id'] = bib_dict[0]['bib']['publisher_const']
+        publisherObj = {
+            "@id": bib_dict[0]['bib']['publisher_const'],
+            "address": bib_dict[0]['bib']['place_of_publication'],
+            "@type": "Organization"            
+            }
+    except:
+        rootDataset['publisher']['@id'] = bib_dict[0]['bib']['place_of_publication']
+        publisherObj = {
+            "@id": bib_dict[0]['bib']['place_of_publication'],
+            "address": bib_dict[0]['bib']['place_of_publication'],
+            "@type": "Organization"            
+            }        
+                   
     rootDataset['source'] = [{"@id": "https://ror.org/04evq8811"}]
 
     rootHasFile=[]
@@ -155,11 +167,7 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
             }
     jsonLD['@graph'].append(authorObj)
     
-    publisherObj = {
-            "@id": bib_dict[0]['bib']['publisher_const'],
-            "address": bib_dict[0]['bib']['place_of_publication'],
-            "@type": "Organization"            
-            }
+
     jsonLD['@graph'].append(publisherObj)
     
     sourceObj = {
@@ -194,7 +202,6 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     
     rootDataset['hasFile'] = rootHasFile
     
-   
     hasPart = []
     # Filling in the template JSONLD
     # Filling in details of screens, altos and anything else present in the mets
