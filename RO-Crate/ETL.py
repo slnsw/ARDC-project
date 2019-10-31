@@ -10,6 +10,7 @@ import pandas as pd
 from roCrate import *
 from utils.rosetta import Rosetta  # this is a rosetta helper class from the SL github
 
+
 def main():
     
     api_endpoint = 'http://digital.sl.nsw.gov.au'
@@ -17,7 +18,7 @@ def main():
     api_sru_endpoint = 'http://digital.sl.nsw.gov.au/search/permanent/sru'
     
     api_username = 'xxxxxxx'
-    api_password = 'xxxxxxxxxx'
+    api_password = 'xxxxxxxxxxx'
     api_institude_code = 'SLNSW'
         
     ros = Rosetta(api_endpoint, api_pds_endpoint, api_sru_endpoint, api_username, api_password, api_institude_code, api_timeout=1200)
@@ -38,15 +39,20 @@ def main():
     
     # Picking out unique IE PIDs
     IE_PIDs = []
+    Titles = []
     for i in mms_select:
-        y = df.loc[df["MMSIDs"]==i].iloc[0]["IE PID"]
+        y = df.loc[df["MMSIDs"]==i]['IE PID'].values[0]
+        z = df.loc[df["MMSIDs"]==i]['Title (DC)'].values[0]
         IE_PIDs.append(y)
-        
+        Titles.append(z)
         
     # Creating the RO-Crates for the 100 books         
 
     objectfiles = []
     mmsid = []
+    
+    #restore bookinfo
+    #IE_PIDs,mmsid,objectfiles = restorebooksinfo()
     
     for index, IE_PID in enumerate(IE_PIDs):
         print("\n ******************** Book ",index, " - IE PID: ", IE_PID, " ******************** \n")
@@ -60,8 +66,8 @@ def main():
         print("\n ******************** Creating JSONLD for Book ",index, " ******************** \n")
         roCrateJsonld(IE_PID, objectfiles[index], mmsid[index])
         
-    for index, IE_PID in enumerate(IE_PIDs):
-        print("\n ******************** Retrieving files for Book ",index, " ******************** \n")
+    for index, IE_PID in enumerate(IE_PIDs[92:]):
+        print("\n ******************** Retrieving files for Book ",index," - IE PID: ", IE_PID, " ******************** \n")
         getFiles(IE_PID, objectfiles[index])
 
 
@@ -75,8 +81,7 @@ def savebooksinfo(IE_PIDs,mmsid,objectfiles):
              'OBJ FILES': objectfiles
              })
     booksinfo.head()
-    booksinfo.to_csv("booksinfo.csv", sep='\t', index=False, encoding='utf-8')
-    
+    booksinfo.to_csv("booksinfo1.csv", sep='\t', index=False, encoding='utf-8')
     
     
 def restorebooksinfo():
@@ -92,6 +97,22 @@ def restorebooksinfo():
     return IE_PIDs1,MMSID1,OBJFILES1
         
     
+
+
+# Retrieving titles of 100 books
+#titles = []
+#df1 = df[df['IE PID'].isin(IE_PIDs)]
+#
+## SAVE TO EXCEL
+#from pandas import ExcelWriter
+#
+#df1=df1.drop(axis=1,columns=['MMSIDs','Barcodes'])
+#writer = ExcelWriter('100BooksExport.xlsx')
+#df1.to_excel(writer,'Sheet1')
+#writer.save()
+#    
+
+
 
 
     
