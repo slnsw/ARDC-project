@@ -66,7 +66,7 @@ def main():
         print("\n ******************** Creating JSONLD for Book ",index, " ******************** \n")
         roCrateJsonld(IE_PID, objectfiles[index], mmsid[index])
         
-    for index, IE_PID in enumerate(IE_PIDs[92:]):
+    for index, IE_PID in enumerate(IE_PIDs):
         print("\n ******************** Retrieving files for Book ",index," - IE PID: ", IE_PID, " ******************** \n")
         getFiles(IE_PID, objectfiles[index])
 
