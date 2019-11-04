@@ -13,9 +13,11 @@ import xml.etree.ElementTree as ET
 from utils.rosetta import xml_json
 import requests
 import shutil
+import unicodedata
+import unidecode
 
 
-
+# Function for retrieving file names and IDs from the book METS
 def glean(IE_PID, ros):
 
     print("1- Requesting METS file from Rosetta")    
@@ -69,10 +71,23 @@ def glean(IE_PID, ros):
     mmsid = list(filter(lambda file: file['ID'] == 'ie-dmd', dmdSec))
 
     return allobjectfiles,mmsid    
+
     
+# Function for parsing nested dicts
+def findkeys(node, kv):
+    if isinstance(node, list):
+        for i in node:
+            for x in findkeys(i, kv):
+               yield x
+    elif isinstance(node, dict):
+        if kv in node:
+            yield node[kv]
+        for j in node.values():
+            for x in findkeys(j, kv):
+                yield x
 
 
-
+# Function for creating RO-Crate JSON-LD files
 def roCrateJsonld(IE_PID, objfiles, mmsid):
     
     altotypes = ['ALTO','ACCESS_TRANSCRIPT_LINKED']
@@ -90,6 +105,10 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     # Defining constants
     bookJSONLD = 'ro-crate-metadata.jsonld'
     name = mmsid[0]['mdWrap']['xmlData']['record']['title'].title()
+    try:
+        name = unidecode.unidecode(name)
+    except:
+        pass
     
     mms_id = mmsid[0]['mdWrap']['xmlData']['record']['identifier']
     bookName = 'Scanned pages'
@@ -105,21 +124,23 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     bib_json = json.dumps([bib_ordereddict])
     bib_dict = json.loads(bib_json)
     
-    # Set book description (if there is one within the title)
-    try:
-        description = name.split(':')[1]
-    except:
-        description = "."
-
     # Set book's date of publishing
     try:
         datePublished = bib_dict[0]['bib']['date_of_publication']
+        try:
+            datePublished = unidecode.unidecode(datePublished)
+        except:
+            pass
     except:
         datePublished = "."
         
     # Set book's author
     try:
-        author = mmsid[0]['mdWrap']['xmlData']['record']['creator']
+        author = bib_dict[0]['bib']['author']
+        try:
+            author = unidecode.unidecode(author)
+        except:
+            pass       
     except:
         author = "."
     
@@ -138,8 +159,27 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     print("desc", rootDatasetDescriptor)
     rootDataset = [r for r in jsonLD["@graph"] if r["@id"] == rootDatasetDescriptor["about"]["@id"]]
     rootDataset = rootDataset[0]
+    
+    # Add url info into the rootDataset object
+    urlitem = list(filter(lambda file: file['tag'] == '856', bib_dict[0]['bib']['record']['datafield']))[0]['subfield']
+    try:
+        rootDataset['identifier'] = list(filter(lambda file: file['code'] == 'u', urlitem))[0]['content']
+    except:
+        rootDataset['identifier'] = urlitem['content']
+    
+    # Add name into the rootDataset object
     rootDataset['name'] = name
-    rootDataset['description'] = description
+    
+    # Add description into the rootDataset object
+    notes = list(filter(lambda file: file['tag'] == '920', bib_dict[0]['bib']['record']['datafield']))
+    contents = list(filter(lambda file: file['tag'] == '300', bib_dict[0]['bib']['record']['datafield']))
+    contents_text = "Contents: " + " ".join(list(findkeys(contents,'content')))
+    notes_text = "\n".join(list(findkeys(notes,'content')))
+    
+    description = contents_text+"\n"+notes_text
+    rootDataset['description']=description
+
+    # Add metadata into the rootDataset object
     rootDataset['datePublished'] = datePublished
     rootDataset['author'][0]['@id'] = author
     try:
@@ -157,8 +197,6 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
             "@type": "Organization"            
             }        
                    
-    rootDataset['source'] = [{"@id": "https://ror.org/04evq8811"}]
-
     rootHasFile=[]
     
     authorObj = {
@@ -169,15 +207,7 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     
 
     jsonLD['@graph'].append(publisherObj)
-    
-    sourceObj = {
-            "@id": "https://ror.org/04evq8811",
-            "name": "State Library of NSW",
-            "address": "Sydney, Australia",
-            "@type": "Organization"
-            }
-    jsonLD['@graph'].append(sourceObj)
-    
+   
     try:
         pdfObj = {
                 '@id': 'PDF/' + pdfFiles[0]['name'],
@@ -267,7 +297,8 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
         json.dump(jsonLD, fp, ensure_ascii=True, indent=2)
     
 
-    
+
+# Function for retrieving files
 def getFiles(IE_PID, objfiles):
     altotypes = ['ALTO','ACCESS_TRANSCRIPT_LINKED']
     imagetypes = ['SCREEN','ACCESS']
