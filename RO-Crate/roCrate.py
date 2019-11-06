@@ -15,6 +15,9 @@ import requests
 import shutil
 import unicodedata
 import unidecode
+from requests.auth import HTTPBasicAuth
+
+
 
 
 # Function for retrieving file names and IDs from the book METS
@@ -88,7 +91,7 @@ def findkeys(node, kv):
 
 
 # Function for creating RO-Crate JSON-LD files
-def roCrateJsonld(IE_PID, objfiles, mmsid):
+def roCrateJsonld(IE_PID, objfiles, mmsid, apikey):
     
     altotypes = ['ALTO','ACCESS_TRANSCRIPT_LINKED']
     imagetypes = ['SCREEN','ACCESS','jpg']
@@ -115,9 +118,7 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
 
     # Base URL for fetching bib data
     base_url = "https://api-ap.hosted.exlibrisgroup.com/almaws/v1/bibs"
-    #API Key (input your own key here)
-    apikey = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-    
+  
     # Retrieving bib xml from ALMA API
     response = requests.get(base_url, params={'mms_id': mms_id,'apikey':apikey})
     bib_ordereddict = xml_json(response.text)
@@ -156,7 +157,7 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
     rootDatasetDescriptor = [d for d in jsonLD["@graph"] if d["@id"] == "ro-crate-metadata.jsonld"]
     rootDatasetDescriptor = rootDatasetDescriptor[0]
     # Then find the rootDataset that it is about.
-    print("desc", rootDatasetDescriptor)
+    # print("desc", rootDatasetDescriptor)
     rootDataset = [r for r in jsonLD["@graph"] if r["@id"] == rootDatasetDescriptor["about"]["@id"]]
     rootDataset = rootDataset[0]
     
@@ -166,6 +167,12 @@ def roCrateJsonld(IE_PID, objfiles, mmsid):
         rootDataset['identifier'] = list(filter(lambda file: file['code'] == 'u', urlitem))[0]['content']
     except:
         rootDataset['identifier'] = urlitem['content']
+    
+    # Add language info into the rootDatasetobject
+    lang1 = list(filter(lambda file: file['tag'] == '008', bib_dict[0]['bib']['record']['controlfield']))[0]['content']
+    lang = lang1[35:38]
+    print(lang)
+    rootDataset["inLanguage"] = lang
     
     # Add name into the rootDataset object
     rootDataset['name'] = name
