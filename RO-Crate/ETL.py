@@ -9,6 +9,7 @@ import random
 import pandas as pd
 from roCrate import *
 from utils.rosetta import Rosetta  # this is a rosetta helper class from the SL github
+import getpass
 
 
 def main():
@@ -17,10 +18,14 @@ def main():
     api_pds_endpoint = 'https://libprd70.sl.nsw.gov.au/pds'
     api_sru_endpoint = 'http://digital.sl.nsw.gov.au/search/permanent/sru'
     
-    api_username = 'xxxxxxx'
-    api_password = 'xxxxxxxxxxx'
+    # Input your Rosetta Credentials
+    api_username = getpass.getpass('Rosetta username: ', stream=None)
+    api_password = getpass.getpass('Rosetta password: ', stream=None)
     api_institude_code = 'SLNSW'
         
+    # Input the ALMA API Key    
+    apikey = getpass.getpass('Alma API Key: ', stream=None) 
+    
     ros = Rosetta(api_endpoint, api_pds_endpoint, api_sru_endpoint, api_username, api_password, api_institude_code, api_timeout=1200)
     
     # Reading in the excel file
@@ -63,11 +68,11 @@ def main():
     savebooksinfo(IE_PIDs,mmsid,objectfiles)
         
     for index, IE_PID in enumerate(IE_PIDs):
-        print("\n ******************** Creating JSONLD for Book ",index, " ******************** \n")
-        roCrateJsonld(IE_PID, objectfiles[index], mmsid[index])
+        print("\n ********** Creating JSONLD for Book ",index," - IE PID: ",IE_PID, " ********** \n")
+        roCrateJsonld(IE_PID, objectfiles[index], mmsid[index], apikey)
         
     for index, IE_PID in enumerate(IE_PIDs):
-        print("\n ******************** Retrieving files for Book ",index," - IE PID: ", IE_PID, " ******************** \n")
+        print("\n ************ Retrieving files for Book ",index," - IE PID: ", IE_PID, " ************* \n")
         getFiles(IE_PID, objectfiles[index])
 
 
@@ -86,7 +91,7 @@ def savebooksinfo(IE_PIDs,mmsid,objectfiles):
     
 def restorebooksinfo():
     # Restoring booksinfo (optional)
-    bookdf = pd.read_csv('booksinfo.csv', sep='\t')
+    bookdf = pd.read_csv('booksinfo1.csv', sep='\t')
     IE_PIDs1 = list(bookdf["IE PIDs"])
     MMSID1 = [] 
     for i in range(100):
